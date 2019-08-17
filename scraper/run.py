@@ -16,31 +16,23 @@ def args_parse():
     return args
 
 
-def main(args):
-    if args.n <= 50:
-        num_row = args.n
-    else:
-        num_row = 50
-    url = 'https://osu.ppy.sh/rankings/osu/performance'
-    page = requests.get(url)
-    doc = lh.fromstring(page.content)
-
-    tr_elements = doc.xpath('//tr')
+def column_maker(data):
     # Create empty list
     col = []
     i = 0
     # For each row, store each first element (header) and an empty list
-    for t in tr_elements[0]:
+    for t in data[0]:
         i += 1
         name = t.text_content().replace('\n                    ', '')
         name = name.replace('\n                ', '')
         col.append((name, []))
-    col[0] = ("Rank", [])
-    col[1] = ("Username", [])
+    return col
 
+
+def df_maker(elements, col, num_row):
     for j in range(1, num_row + 1):
         # j'th row
-        row = tr_elements[j]
+        row = elements[j]
 
         # i is the index of our column
         i = 0
@@ -63,7 +55,10 @@ def main(args):
     dictionary = {title: column for (title, column) in col}
     df = pd.DataFrame(dictionary)
     df = df.replace('\n                    ', value='', regex=True)
+    return df
 
+
+def osu_df_maker(df, page, num_row):
     soup = BeautifulSoup(page.content, "html.parser")
 
     names = soup.find_all(
@@ -78,7 +73,24 @@ def main(args):
     for country in countries:
         countries_list.append(country.get('title'))
     df.insert(loc=1, column='Country', value=countries_list[:num_row])
+    return df
 
+
+def main(args):
+    if args.n <= 50:
+        num_row = args.n
+    else:
+        num_row = 50
+    url = 'https://osu.ppy.sh/rankings/osu/performance'
+    page = requests.get(url)
+    doc = lh.fromstring(page.content)
+    tr_elements = doc.xpath('//tr')
+
+    col = column_maker(tr_elements)
+    col[0] = ("Rank", [])
+    col[1] = ("Username", [])
+    df = df_maker(tr_elements, col, num_row)
+    df = osu_df_maker(df, page, num_row)
     df.to_csv(args.name)
 
 
