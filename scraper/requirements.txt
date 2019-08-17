@@ -1,0 +1,5 @@
+argparse
+requests
+lxml.html
+pandas
+bs4
